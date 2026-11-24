@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inventario y etiquetas del laboratorio</title>
+<style>
+:root{--bg:#f6f4ef;--sf:#fff;--tx:#1d2340;--mu:#5b6075;--ac:#2a3a8c;--ac2:#a8dad2;--bd:#d9d6cc;--er:#b3261e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151826;--sf:#1e2236;--tx:#eceefa;--mu:#a5abc6;--ac:#9fb0ff;--ac2:#2c5a55;--bd:#33385a;--er:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#151826;--sf:#1e2236;--tx:#eceefa;--mu:#a5abc6;--ac:#9fb0ff;--ac2:#2c5a55;--bd:#33385a;--er:#ff8a80;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:0 0 2px;color:var(--ac)}
+.sub{color:var(--mu);margin:0 0 14px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+input,select,button,textarea{font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+button{cursor:pointer}button.p{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.sc{overflow-x:auto;background:var(--sf);border:1px solid var(--bd);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--bd);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mu)}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;color:var(--ac)}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;background:var(--ac2);font-size:12px}
+.msg{padding:10px 12px;border-radius:8px;background:var(--sf);border:1px solid var(--bd);margin-bottom:10px}
+.err{color:var(--er)}
+dialog{max-width:640px;width:calc(100% - 24px);background:var(--sf);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--mu);gap:3px}
+label input,label select{font-size:15px;color:var(--tx)}
+.rules{font-size:13px;color:var(--mu);margin-top:14px}
+#lbl{text-align:center;padding:10px;border:1px dashed var(--bd);width:max-content;max-width:100%;margin:8px auto}
+#lbl .c{font:700 20px ui-monospace,Menlo,monospace}
+.ro .wr{display:none}
+@media print{body *{visibility:hidden}#lbl,#lbl *{visibility:visible}#lbl{position:absolute;left:0;top:0;border:0;color:#000}}
+</style></head><body>
+<main>
+<h1>Inventario y etiquetas</h1>
+<p class="sub">Cada cosa lleva un código que nunca cambia: ÁREA-TIPO-SUBTIPO-CORRELATIVO, por ejemplo ELE-EQ-MUL-0001.</p>
+<div id="msg" class="msg">Conectando con la base de datos…</div>
+<div class="bar">
+<input id="q" placeholder="Buscar código, nombre, marca, serie…" style="flex:1;min-width:200px">
+<select id="fa"><option value="">Todas las áreas</option></select>
+<select id="fe"><option value="">Todos los estados</option></select>
+<button class="p wr" id="bn">+ Nuevo registro</button>
+<button class="wr" id="bc">Catálogos</button>
+<button class="wr" id="bu">Ubicaciones</button>
+<button class="wr" id="bi">Importar Excel</button>
+<button id="bx">Exportar CSV</button>
+<input type="file" id="fi" accept=".xlsx,.xls,.csv" hidden>
+</div>
+<div class="sc"><table><thead><tr><th>Código</th><th>Nombre</th><th>Marca / modelo / serie</th><th>Ubicación</th><th>Cant.</th><th>Estado</th><th>Custodio</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+<p id="cnt" class="sub" style="margin-top:8px"></p>
+<div class="rules"><b>Reglas del código:</b> no se reutiliza · no incluye ubicación ni estado · el QR guarda solo el código · las ubicaciones también llevan código (ej. LAB1, R105).</div>
+</main>
+
+<dialog id="dr"><form method="dialog" onsubmit="return false"><h2 id="drt" style="margin-top:0"></h2><div id="drb"></div><p id="dre" class="err"></p>
+<div class="bar" style="justify-content:flex-end;margin:10px 0 0"><button id="drx">Cancelar</button><button class="p" id="drs">Guardar</button></div></form></dialog>
+<dialog id="dl"><h2 style="margin-top:0">Etiqueta</h2><div id="lbl"><div id="qr"></div><div class="c" id="lc"></div><div id="ln"></div></div>
+<div class="bar" style="justify-content:flex-end"><button id="lx">Cerrar</button><button class="p" id="lp">Imprimir</button></div></dialog>
+<dialog id="dk"><h2 style="margin-top:0" id="dkt"></h2><div id="dkb"></div><div class="bar" style="justify-content:flex-end;margin-top:10px"><button id="dkx">Cerrar</button></div></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const ESTADOS=['Disponible','En uso','En mantenimiento','Dañado','Baja'];
+const RX={codigo:/^[A-Z]{3}-[A-Z]{2}-[A-Z]{3}-\d{4}$/,ubic:/^[A-Z0-9]+(-[A-Z0-9]+)*$/,area:/^[A-Z]{3}$/,tipo:/^[A-Z]{2}$/,sub:/^[A-Z]{3}$/};
+const FIELDS=[['nombre','Nombre *','text'],['marca','Marca','text'],['modelo','Modelo','text'],['serie','Serie','text'],['categoria','Categoría','text'],['ubicacion','Ubicación','ubic'],['cantidad','Cantidad *','number'],['estado','Estado *','estado'],['custodio','Custodio (quién lo tiene)','text'],['fechaCompra','Fecha de compra','date'],['costo','Costo de compra','number'],['proveedor','Proveedor','text'],['lote','Lote','text'],['caducidad','Caducidad','date']];
+let db,holder,items=[],cfg={areas:{},tipos:{},subtipos:{}},ubic=[],editing=null,busy=false;
+function msg(t,bad){const m=$('#msg');m.textContent=t;m.className='msg'+(bad?' err':'');m.hidden=!t}
+function opts(o,ph){return (ph?'<option value="">'+esc(ph)+'</option>':'')+Object.keys(o).sort().map(k=>'<option value="'+esc(k)+'">'+esc(k)+' · '+esc(o[k])+'</option>').join('')}
+
+(async()=>{
+ const t=setTimeout(()=>{if(!db)msg('No se pudo conectar con la base de datos. Abre la página desde el enlace de claude.ai con tu sesión iniciada.',1)},10000);
+ try{
+  db=await claude.use('db');const user=await claude.use('user');clearTimeout(t);
+  if(!db){msg('Esta vista no tiene acceso a la base de datos. Inicia sesión en claude.ai y vuelve a abrir el enlace.',1);return}
+  let id=null;try{id=user?(await user.me()).id:null}catch(e){}
+  holder=id||('t'+Math.random().toString(36).slice(2));
+  if(user&&(await user.can('data.write'))===false){document.documentElement.classList.add('ro');document.body.classList.add('ro');msg('Tienes acceso de solo lectura: puedes consultar y exportar, pero no modificar.')}else msg('');
+  db.collection('items').onSnapshot(s=>{items=s.docs.map(d=>d.data());render()},e=>msg('Error leyendo registros: '+e.message,1));
+  db.doc('cfg/catalogo').onSnapshot(s=>{const d=s.exists?s.data():{};cfg={areas:d.areas||{},tipos:d.tipos||{},subtipos:d.subtipos||{}};fill();render()},e=>msg('Error leyendo catálogos: '+e.message,1));
+  db.collection('ubic').onSnapshot(s=>{ubic=s.docs.map(d=>d.data()).sort((a,b)=>a.codigo<b.codigo?-1:1)},e=>msg('Error leyendo ubicaciones: '+e.message,1));
+ }catch(e){clearTimeout(t);msg('Error al iniciar: '+(e.message||e),1)}
+})();
+
+function fill(){const a=$('#fa'),v=a.value;a.innerHTML='<option value="">Todas las áreas</option>'+opts(cfg.areas);a.value=v;const e=$('#fe'),w=e.value;e.innerHTML='<option value="">Todos los estados</option>'+ESTADOS.map(x=>'<option>'+x+'</option>').join('');e.value=w}
+function render(){
+ const q=$('#q').value.trim().toLowerCase(),fa=$('#fa').value,fe=$('#fe').value;
+ const list=items.filter(i=>(!fa||i.area===fa)&&(!fe||i.estado===fe)&&(!q||[i.codigo,i.nombre,i.marca,i.modelo,i.serie,i.categoria,i.ubicacion,i.custodio,i.proveedor,i.lote].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.codigo<b.codigo?-1:1);
+ $('#tb').innerHTML=list.map(i=>'<tr><td><code>'+esc(i.codigo)+'</code></td><td>'+esc(i.nombre)+'<br><small>'+esc(i.categoria)+'</small></td><td>'+esc([i.marca,i.modelo,i.serie].filter(Boolean).join(' / '))+'</td><td>'+esc(i.ubicacion)+'</td><td>'+esc(i.cantidad)+'</td><td><span class="tag">'+esc(i.estado)+'</span></td><td>'+esc(i.custodio)+'</td><td style="white-space:nowrap"><button data-l="'+esc(i.codigo)+'">Etiqueta</button> <button class="wr" data-e="'+esc(i.codigo)+'">Editar</button></td></tr>').join('')||'<tr><td colspan="8" style="color:var(--mu)">Sin registros que mostrar.</td></tr>';
+ $('#cnt').textContent=list.length+' de '+items.length+' registros';
+}
+['#q','#fa','#fe'].forEach(s=>$(s).addEventListener('input',render));
+$('#tb').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.l)label(b.dataset.l);if(b.dataset.e)openForm(b.dataset.e)});
+
+function label(c){const i=items.find(x=>x.codigo===c);if(!i)return;$('#qr').innerHTML='';try{new QRCode($('#qr'),{text:c,width:140,height:140})}catch(e){$('#qr').textContent='(QR no disponible)'}$('#lc').textContent=c;$('#ln').textContent=i.nombre;$('#dl').showModal()}
+$('#lx').onclick=()=>$('#dl').close();$('#lp').onclick=()=>window.print();
+
+function dlg(t,html){$('#dkt').textContent=t;$('#dkb').innerHTML=html;if(!$('#dk').open)$('#dk').showModal()}
+$('#dkx').onclick=()=>$('#dk').close();
+
+/* ---------- formulario ---------- */
+function openForm(code){
+ editing=code?items.find(x=>x.codigo===code):null;const r=editing||{};
+ $('#drt').textContent=editing?'Editar '+code:'Nuevo registro';$('#dre').textContent='';
+ let h='';
+ if(!editing)h+='<div class="g"><label>Área *<select id="f_area">'+opts(cfg.areas,'Elegir')+'</select></label><label>Tipo *<select id="f_tipo">'+opts(cfg.tipos,'Elegir')+'</select></label><label>Subtipo *<select id="f_sub">'+opts(cfg.subtipos,'Elegir')+'</select></label></div><p class="sub">El correlativo se asigna solo al guardar, sin repetirse.</p>';
+ else h+='<p class="sub">El código no se puede cambiar.</p>';
+ h+='<div class="g">'+FIELDS.map(([k,l,t])=>{const v=r[k]==null?(k==='cantidad'?1:k==='estado'?'Disponible':''):r[k];let inp;
+  if(t==='ubic')inp='<select id="f_'+k+'"><option value="">(sin ubicación)</option>'+ubic.map(u=>'<option value="'+esc(u.codigo)+'">'+esc(u.codigo)+(u.nombre?' · '+esc(u.nombre):'')+'</option>').join('')+'</select>';
+  else if(t==='estado')inp='<select id="f_'+k+'">'+ESTADOS.map(x=>'<option>'+x+'</option>').join('')+'</select>';
+  else inp='<input id="f_'+k+'" type="'+t+'"'+(k==='cantidad'?' min="0" step="1"':'')+(k==='costo'?' min="0" step="0.01"':'')+'>';
+  return '<label>'+l+inp+'</label>'}).join('')+'</div>';
+ $('#drb').innerHTML=h;
+ FIELDS.forEach(([k,,t])=>{const el=$('#f_'+k);const v=r[k];el.value=v==null?(k==='cantidad'?1:k==='estado'?'Disponible':''):v});
+ $('#dr').showModal();
+}
+$('#bn').onclick=()=>{if(!Object.keys(cfg.areas).length||!Object.keys(cfg.tipos).length||!Object.keys(cfg.subtipos).length){dlg('Faltan catálogos','<p>Primero agrega al menos un área, un tipo y un subtipo en «Catálogos».</p>');return}openForm(null)};
+$('#drx').onclick=()=>$('#dr').close();
+function collect(){
+ const o={};for(const [k,l,t] of FIELDS){let v=$('#f_'+k).value.trim();
+  if(t==='number'&&v!==''){v=Number(v);if(!isFinite(v)||v<0)return{e:l.replace(' *','')+' debe ser un número válido'}}
+  o[k]=v}
+ if(!o.nombre)return{e:'El nombre es obligatorio'};
+ if(o.cantidad===''||!Number.isInteger(o.cantidad))return{e:'La cantidad debe ser un número entero (0 o más)'};
+ if(o.ubicacion&&!ubic.some(u=>u.codigo===o.ubicacion))return{e:'La ubicación no existe en el catálogo de ubicaciones'};
+ if(o.fechaCompra&&o.caducidad&&o.caducidad<o.fechaCompra)return{e:'La caducidad no puede ser anterior a la fecha de compra'};
+ return{o}}
+async function nextCode(p){
+ const ref=db.doc('counters/'+p);
+ for(let i=0;i<20;i++){
+  const r=await ref.acquire({holder,ttlMs:1000});
+  if(!r.acquired){await sleep(600);continue}
+  const s=await ref.get();let n=s.exists?(s.data().n||0):0;
+  while(true){n++;if(n>9999)throw new Error('Se agotaron los correlativos de '+p);
+   const c=p+'-'+String(n).padStart(4,'0');const e=await db.doc('items/'+c).get();
+   if(!e.exists){await ref.set({n});return c}}
+ }
+ throw new Error('Otra persona está generando códigos en este momento; intenta de nuevo.')}
+$('#drs').onclick=async()=>{
+ if(busy)return;const er=$('#dre');er.textContent='';
+ const c=collect();if(c.e){er.textContent=c.e;return}
+ busy=true;$('#drs').disabled=true;
+ try{
+  const now=new Date().toISOString();
+  if(editing){await db.doc('items/'+editing.codigo).update({...c.o,actualizado:now});$('#dr').close()}
+  else{
+   const area=$('#f_area').value,tipo=$('#f_tipo').value,sub=$('#f_sub').value;
+   if(!area||!tipo||!sub){er.textContent='Elige área, tipo y subtipo';return}
+   const code=await nextCode(area+'-'+tipo+'-'+sub);
+   await db.doc('items/'+code).set({codigo:code,area,tipo,subtipo:sub,...c.o,creado:now,actualizado:now});
+   $('#dr').close();label2(code)}
+ }catch(e){er.textContent='No se guardó: '+(e.message||e.code||e)}
+ finally{busy=false;$('#drs').disabled=false}};
+function label2(code){let n=0;const w=setInterval(()=>{if(items.some(x=>x.codigo===code)||++n>20){clearInterval(w);label(code)}},250)}
+
+/* ---------- catálogos ---------- */
+async function cfgAdd(kind,key,val){const ref=db.doc('cfg/catalogo');const s=await ref.get();if(s.exists)await ref.update({[kind]:{[key]:val}});else await ref.set({[kind]:{[key]:val}})}
+$('#bc').onclick=()=>{
+ const sec=(t,k,ph,len)=>'<h3 style="margin:10px 0 4px">'+t+'</h3><p class="sub" style="margin:0 0 6px">'+Object.keys(cfg[k]).sort().map(x=>'<span class="tag">'+esc(x)+' · '+esc(cfg[k][x])+'</span>').join(' ')+'</p><div class="bar"><input id="c_'+k+'k" placeholder="'+ph+'" maxlength="'+len+'" style="width:90px;text-transform:uppercase"><input id="c_'+k+'v" placeholder="Nombre" style="flex:1"><button data-c="'+k+'">Agregar</button></div>';
+ dlg('Catálogos',sec('Áreas','areas','ELE',3)+sec('Tipos','tipos','EQ',2)+sec('Subtipos','subtipos','MUL',3)+'<p id="ce" class="err"></p><p class="sub">Las siglas no se pueden borrar ni cambiar, para que ningún código quede huérfano.</p>')};
+$('#dkb').addEventListener('click',async e=>{const b=e.target.closest('button[data-c]');if(!b)return;const k=b.dataset.c,rx={areas:RX.area,tipos:RX.tipo,subtipos:RX.sub}[k];
+ const key=$('#c_'+k+'k').value.trim().toUpperCase(),val=$('#c_'+k+'v').value.trim(),er=$('#ce');er.textContent='';
+ if(!rx.test(key)){er.textContent='Las siglas deben ser '+(k==='tipos'?'2':'3')+' letras mayúsculas sin acentos';return}
+ if(!val){er.textContent='Escribe el nombre';return}
+ if(cfg[k][key]){er.textContent='Esas siglas ya existen';return}
+ try{await cfgAdd(k,key,val);await sleep(400);$('#bc').click()}catch(x){er.textContent='No se guardó: '+(x.message||x.code)}});
+
+/* ---------- ubicaciones ---------- */
+$('#bu').onclick=()=>{dlg('Ubicaciones','<p class="sub">Letras y números en mayúscula, sin espacios. Ejemplos: LAB1, R105.</p><div class="bar"><input id="u_c" placeholder="LAB1" style="text-transform:uppercase"><input id="u_n" placeholder="Descripción" style="flex:1"><button id="u_a">Agregar</button></div><p id="ue" class="err"></p><p class="sub">'+ubic.map(u=>'<span class="tag">'+esc(u.codigo)+(u.nombre?' · '+esc(u.nombre):'')+'</span>').join(' ')+'</p>')};
+$('#dkb').addEventListener('click',async e=>{if(e.target.id!=='u_a')return;const c=$('#u_c').value.trim().toUpperCase(),n=$('#u_n').value.trim(),er=$('#ue');er.textContent='';
+ if(!RX.ubic.test(c)){er.textContent='Código inválido. Usa solo letras y números, sin espacios (ej. LAB1).';return}
+ if(ubic.some(u=>u.codigo===c)){er.textContent='Esa ubicación ya existe';return}
+ try{await db.doc('ubic/'+c).set({codigo:c,nombre:n});await sleep(400);$('#bu').click()}catch(x){er.textContent='No se guardó: '+(x.message||x.code)}});
+
+/* ---------- exportar ---------- */
+$('#bx').onclick=async()=>{
+ const cols=['codigo','nombre','marca','modelo','serie','categoria','ubicacion','cantidad','estado','custodio','fechaCompra','costo','proveedor','lote','caducidad'];
+ const q=v=>{v=v==null?'':String(v);if(/^[=+\-@]/.test(v)&&!/^-?\d+(\.\d+)?$/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'};
+ const rows=[cols.join(',')].concat(items.slice().sort((a,b)=>a.codigo<b.codigo?-1:1).map(i=>cols.map(c=>q(i[c])).join(',')));
+ try{const d=await claude.use('downloads');if(!d){dlg('Exportar','<p>La descarga no está disponible en esta vista.</p>');return}
+  await d.save({filename:'inventario.csv',data:'\ufeff'+rows.join('\r\n')})}catch(e){if(e&&e.code!=='declined')dlg('Exportar','<p class="err">No se pudo descargar: '+esc(e.message||e.code)+'</p>')}};
+
+/* ---------- importar Excel ---------- */
+$('#bi').onclick=()=>$('#fi').click();
+const nz=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const dstr=v=>{if(v instanceof Date&&!isNaN(v))return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');return v==null?'':String(v).trim()};
+$('#fi').onchange=async ev=>{
+ const f=ev.target.files[0];ev.target.value='';if(!f||busy)return;busy=true;
+ const rep=[];let ok=0,skip=0;const mx={};
+ try{
+  const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];const raw=XLSX.utils.sheet_to_json(ws,{defval:''});
+  if(!raw.length)throw new Error('La hoja está vacía');
+  const MAP={codigo:'codigo',nombre:'nombre',marca:'marca',modelo:'modelo',serie:'serie',categoria:'categoria',ubicacion:'ubicacion',cantidad:'cantidad',estado:'estado',custodio:'custodio',fechacompra:'fechaCompra',costo:'costo',costodecompra:'costo',proveedor:'proveedor',lote:'lote',caducidad:'caducidad'};
+  dlg('Importando…','<p>Procesando '+raw.length+' filas. No cierres la página.</p>');
+  let n=1;
+  for(const row of raw){n++;const r={};for(const k in row){const m=MAP[nz(k)];if(m)r[m]=row[k]}
+   const code=String(r.codigo||'').trim().toUpperCase(),why=m=>{skip++;rep.push('Fila '+n+(code?' ('+code+')':'')+': '+m)};
+   if(!code&&!r.nombre){continue}
+   if(!RX.codigo.test(code)){why('código vacío o con formato inválido');continue}
+   const [a,t,s,c]=code.split('-');
+   if(!cfg.areas[a]||!cfg.tipos[t]||!cfg.subtipos[s]){why('área, tipo o subtipo no existen en los catálogos');continue}
+   const nombre=String(r.nombre||'').trim();if(!nombre){why('falta el nombre');continue}
+   let cant=r.cantidad===''||r.cantidad==null?1:Number(r.cantidad);if(!Number.isInteger(cant)||cant<0){why('cantidad inválida');continue}
+   const st=r.estado?ESTADOS.find(x=>x.toLowerCase()===String(r.estado).trim().toLowerCase()):'Disponible';if(!st){why('estado no reconocido: '+r.estado);continue}
+   let costo=r.costo===''||r.costo==null?'':Number(r.costo);if(costo!==''&&(!isFinite(costo)||costo<0)){why('costo inválido');continue}
+   const ub=String(r.ubicacion||'').trim().toUpperCase();
+   if(ub){if(!RX.ubic.test(ub)){why('ubicación con formato inválido');continue}
+    if(!ubic.some(u=>u.codigo===ub)){await db.doc('ubic/'+ub).set({codigo:ub,nombre:''});ubic.push({codigo:ub,nombre:''})}}
+   if((await db.doc('items/'+code).get()).exists){why('ya existe, no se sobrescribe');continue}
+   const now=new Date().toISOString(),T=x=>String(x==null?'':x).trim();
+   await db.doc('items/'+code).set({codigo:code,area:a,tipo:t,subtipo:s,nombre,marca:T(r.marca),modelo:T(r.modelo),serie:T(r.serie),categoria:T(r.categoria),ubicacion:ub,cantidad:cant,estado:st,custodio:T(r.custodio),fechaCompra:dstr(r.fechaCompra),costo,proveedor:T(r.proveedor),lote:T(r.lote),caducidad:dstr(r.caducidad),creado:now,actualizado:now});
+   const p=a+'-'+t+'-'+s;mx[p]=Math.max(mx[p]||0,Number(c));ok++}
+  for(const p in mx){for(let i=0;i<20;i++){const ref=db.doc('counters/'+p);const l=await ref.acquire({holder,ttlMs:1000});if(!l.acquired){await sleep(600);continue}
+    const s=await ref.get();if(!s.exists||(s.data().n||0)<mx[p])await ref.set({n:mx[p]});break}}
+  dlg('Importación terminada','<p><b>'+ok+'</b> registros importados, <b>'+skip+'</b> omitidos.</p>'+(rep.length?'<ul style="max-height:260px;overflow:auto">'+rep.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':''));
+ }catch(e){dlg('No se pudo importar','<p class="err">'+esc(e.message||e.code||e)+'</p><p>Se importaron '+ok+' registros antes del error.</p>')}
+ finally{busy=false}};
+</script></body></html>

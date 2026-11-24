@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventario y etiquetas del laboratorio</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <header class="page-head">
+    <h1>Inventario y etiquetas</h1>
+    <p class="sub">Cada elemento se identifica con un código permanente: ÁREA-TIPO-SUBTIPO-CORRELATIVO (ejemplo: ELE-EQ-MUL-0001).</p>
+  </header>
+  <div id="msg" class="msg">Conectando con la base de datos…</div>
+
+  <div class="bar actions">
+    <input id="q" class="search" placeholder="Buscar código, nombre, marca, serie…">
+    <select id="fa"><option value="">Todas las áreas</option></select>
+    <select id="fe"><option value="">Todos los estados</option></select>
+    <button class="p wr" id="bn">Nuevo registro</button>
+    <button class="wr" id="bc">Categorías</button>
+    <button class="wr" id="bu">Ubicaciones</button>
+    <button class="wr" id="bi">Importar Excel</button>
+    <button id="bx">Exportar CSV</button>
+    <input type="file" id="fi" accept=".xlsx,.xls,.csv" hidden>
+  </div>
+
+  <div class="sc">
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th><th>Nombre</th><th>Marca / modelo / serie</th>
+          <th>Ubicación</th><th>Cant.</th><th>Estado</th><th>Custodio</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+  <p id="cnt" class="sub"></p>
+  <div class="rules"><b>Reglas del código:</b> no se reutiliza; no incluye ubicación ni estado; el QR guarda solo el código; las ubicaciones también llevan código (ej. LAB1, R105).</div>
+</main>
+
+<dialog id="dr">
+  <form method="dialog" onsubmit="return false">
+    <h2 id="drt" style="margin-top:0"></h2>
+    <div id="drb"></div>
+    <p id="dre" class="err"></p>
+    <div class="bar">
+      <button type="button" id="drx">Cancelar</button>
+      <button type="button" class="p" id="drs">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dl">
+  <h2 style="margin-top:0">Etiqueta</h2>
+  <div id="lbl">
+    <div id="qr"></div>
+    <div class="c" id="lc"></div>
+    <div id="ln"></div>
+  </div>
+  <div class="bar">
+    <button type="button" id="lx">Cerrar</button>
+    <button type="button" class="p" id="lp">Imprimir</button>
+  </div>
+</dialog>
+
+<dialog id="dk">
+  <h2 style="margin-top:0" id="dkt"></h2>
+  <div id="dkb"></div>
+  <div class="bar">
+    <button type="button" id="dkx">Cerrar</button>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
